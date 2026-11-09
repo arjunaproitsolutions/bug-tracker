@@ -42,7 +42,7 @@ main{padding:20px 24px 48px;display:grid;grid-template-columns:minmax(0,1fr);gap
 .bar{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:12px}.bar em{width:130px;font-style:normal;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bar div{flex:1;height:6px;background:var(--bd);border-radius:3px;overflow:hidden;display:flex}.bar div u{background:var(--ok)}.bar b{min-width:32px;text-align:right;font-weight:600}
 .tw{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:760px}
-#it{table-layout:fixed;min-width:980px}#it th{background:var(--hv);height:36px;padding-top:0;padding-bottom:0;white-space:nowrap}#it td{height:56px;padding-top:6px;padding-bottom:6px}
+.nt{font-size:13px;white-space:pre-line;overflow-wrap:anywhere}.dg{background:var(--wr)!important;border-color:var(--wr)!important}#it{table-layout:fixed;min-width:1180px}#it th{background:var(--hv);height:36px;padding-top:0;padding-bottom:0;white-space:nowrap}#it td{height:56px;padding-top:6px;padding-bottom:6px}
 #it th:first-child,#it td:first-child{text-align:right;padding-right:16px}#it th:last-child{text-align:center}#it select{width:100%}
 #it .ct{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#it .ti,#it .cl{overflow-wrap:anywhere}#it .cl{display:block;overflow:visible;white-space:pre-line;margin-top:2px}
 .acts{display:grid!important;grid-template-columns:repeat(5,32px);gap:2px;justify-content:center}
@@ -110,7 +110,7 @@ dialog h2{font-size:16px}dialog label{display:block;margin:12px 0 4px;color:var(
 <select id="fc" aria-label="Filter by category"><option value="">All categories</option></select>
 <select id="fq" aria-label="Filter by QA"><option value="">All QA</option><option value="p">QA pending</option><option value="c">QA completed</option></select>
 <div class="dr" role="group" aria-label="Fixed date range"><span>Fixed</span><input id="fa" type="date" aria-label="Fixed from"><span>to</span><input id="fb" type="date" aria-label="Fixed to"></div></div></div>
-<div class="tw"><table id="it"><colgroup><col style="width:60px"><col><col style="width:180px"><col style="width:96px"><col style="width:92px"><col style="width:108px"><col style="width:132px"><col style="width:190px"></colgroup><thead><tr><th>#</th><th>Issue</th><th>Category</th><th>Priority</th><th>Status</th><th>Fixed on</th><th>QA</th><th>Actions</th></tr></thead><tbody id="tb"></tbody></table></div>
+<div class="tw"><table id="it"><colgroup><col style="width:52px"><col><col style="width:200px"><col style="width:140px"><col style="width:88px"><col style="width:84px"><col style="width:96px"><col style="width:120px"><col style="width:186px"></colgroup><thead><tr><th>#</th><th>Issue</th><th>Notes</th><th>Category</th><th>Priority</th><th>Status</th><th>Fixed on</th><th>QA</th><th>Actions</th></tr></thead><tbody id="tb"></tbody></table></div>
 <div class="pgr" id="pgb"></div></div>
 </main>
 <div id="toast"></div><div id="tip" role="tooltip" hidden></div>
@@ -152,21 +152,23 @@ const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+Stri
 const monday=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return iso(x)};
 const isFixed=r=>/resolved|fixed|done|closed/i.test(r.st)&&!/not|unresolved|unfixed/i.test(r.st),toast=t=>{const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',3200)};
 const PR=['Critical','High','Medium','Low'],cs=()=>S.srcs[S.si]||{id:'',name:'Sheet',tabs:[]};
-const can=p=>S.demo||!!(S.user&&S.user.perms.split(',').includes(p));
+const can=p=>S.demo||!!(S.user&&(S.user.perms.split(',').includes(p)||(p==='delete'&&S.user.role==='admin')));
 const D=v=>{if(!v)return'';const m=String(v).match(/^\d{4}-\d{2}-\d{2}/);if(m)return m[0];const x=new Date(v);return isNaN(x)?'':iso(x)};
 const sid=u=>(String(u).match(/\/d\/([\w-]+)/)||[0,/^[\w-]{20,}$/.test(u)?u:''])[1];
 
 async function api(action,p={}){if(S.demo)throw 'Not available in demo mode';
  const r=await fetch(S.url,{method:'POST',body:JSON.stringify({action,token:S.tok,...p})});let j;
  try{j=await r.json()}catch(e){throw 'The script URL did not return data. Check it ends in /exec and access is set to Anyone.'}
+ if(j.error==='Unknown action')throw 'This needs the latest script. Redeploy Code.gs with a New version.';
  if(j.error){if(/session expired/i.test(j.error))logout(true);throw j.error}return j}
 
 const SYSC=/^(fixed date|fixed by|qa by|reported date|reported by|screenshot)$/i;
 const tc=s=>{s=String(s||'').trim();return s?s[0].toUpperCase()+s.slice(1).toLowerCase():''},meta=res=>({cols:extras(res.head),empty:!!res.empty,nohead:!!res.nohead});
 function cols(h){const f=re=>h.find(x=>re.test(x));return{title:f(/title|issue/i),cat:f(/categor/i)||f(/module/i),desc:f(/descri/i),pri:f(/priorit/i),st:f(/developer|dev\s*status/i)||f(/^status/i),qa:f(/qa status|^qa$/i)||f(/qa/i),fix:f(/fixed date/i),rep:f(/reported date/i),img:f(/^screenshot$/i)}}
 function extras(h){const c=Object.values(cols(h));return h.filter(x=>x&&x!=='#'&&!c.includes(x)&&!SYSC.test(x))}
-function norm(res){const c=cols(res.head),E=extras(res.head);
- return res.rows.map(x=>({ext:E.filter(k=>x[k]!==''&&x[k]!=null).map(k=>k+': '+x[k]),xv:Object.fromEntries(E.map(k=>[k,x[k]??''])),row:x.row,id:x['#'],title:x[c.title],cat:String(x[c.cat]||'').trim()||'Uncategorised',desc:x[c.desc]||'',pri:tc(x[c.pri]),st:String(x[c.st]||''),qa:String(x[c.qa]||''),fixed:D(x[c.fix]),rep:D(x[c.rep]),imgs:(String(x[c.img]||'').match(/\/d\/[\w-]{20,}/g)||[]).length}))}
+const NOTE=/^(notes?|remarks?|comments?)$/i,extLine=o=>Object.entries(o).filter(e=>e[1]!==''&&e[1]!=null&&!NOTE.test(e[0])).map(e=>e[0]+': '+e[1]),noteOf=o=>{const k=Object.keys(o).find(x=>NOTE.test(x));return k?String(o[k]??''):''};
+function norm(res){const c=cols(res.head),E=extras(res.head),pick=x=>Object.fromEntries(E.map(k=>[k,x[k]??'']));
+ return res.rows.map(x=>({ext:extLine(pick(x)),notes:noteOf(pick(x)),xv:Object.fromEntries(E.map(k=>[k,x[k]??''])),row:x.row,id:x['#'],title:x[c.title],cat:String(x[c.cat]||'').trim()||'Uncategorised',desc:x[c.desc]||'',pri:tc(x[c.pri]),st:String(x[c.st]||''),qa:String(x[c.qa]||''),fixed:D(x[c.fix]),rep:D(x[c.rep]),imgs:(String(x[c.img]||'').match(/\/d\/[\w-]{20,}/g)||[]).length}))}
 function demo(){const cats=['Signing up as a user','Login as a user','Applying as a district manager','Add property','Inspection'],t=new Date();
  return Array.from({length:60},(_,i)=>{const fx=i<34,d=new Date(t);d.setDate(d.getDate()-Math.floor((60-i)*1.7));const r=new Date(d);r.setDate(r.getDate()-5);
  return{row:i+5,id:i+1,title:'Demo issue '+(i+1),cat:cats[i%5],desc:'Sample description for issue '+(i+1),pri:PR[(i*7)%4],st:fx?'Resolved':'Open',qa:fx&&i%3?'Completed':'Pending',fixed:fx?iso(d):'',rep:iso(r)}})}
@@ -179,6 +181,7 @@ async function load(){$('#err').hidden=true;
  SS('bt_cur',JSON.stringify({id:cs().id,t:S.cur}));
  const k=ck(),id=cs().id,sheet=S.cur,hit=got(k),t=++S.ls,v=S.ver;
  S.rows=hit||[];S.loading=!hit;if(hit)S.c[k]=hit;$('#sync').textContent=hit?'Updating…':'Loading…';cats();render();
+ const sk=S.skip;S.skip=false;if(hit&&sk){$('#sync').textContent='Synced '+new Date().toLocaleTimeString();return}
  try{const res=await api('data',{id,sheet}),rows=norm(res);setH(k,meta(res));
  if(t!==S.ls){if(v===S.ver&&!S.busy)put(k,rows);return}
  S.loading=false;$('#sync').textContent='Synced '+new Date().toLocaleTimeString();setupUI();
@@ -214,15 +217,15 @@ function render(){
 
 
 function filt(){const q=$('#q').value.toLowerCase(),fs=$('#fs').value,fp=$('#fp').value,fc=$('#fc').value,fq=$('#fq').value,a=$('#fa').value,b=$('#fb').value;
- const L=S.rows.filter(r=>(!q||(r.id+' '+r.title+' '+r.cat+' '+r.desc+' '+(r.ext||[]).join(' ')).toLowerCase().includes(q))&&(!fs||(fs==='r')===isFixed(r))&&(!fp||r.pri===fp)&&(!fc||r.cat===fc)&&(!fq||(fq==='c')===/complet/i.test(r.qa))&&(!a||(r.fixed&&r.fixed>=a))&&(!b||(r.fixed&&r.fixed<=b)));
+ const L=S.rows.filter(r=>(!q||(r.id+' '+r.title+' '+r.cat+' '+r.desc+' '+(r.ext||[]).join(' ')+' '+(r.notes||'')).toLowerCase().includes(q))&&(!fs||(fs==='r')===isFixed(r))&&(!fp||r.pri===fp)&&(!fc||r.cat===fc)&&(!fq||(fq==='c')===/complet/i.test(r.qa))&&(!a||(r.fixed&&r.fixed>=a))&&(!b||(r.fixed&&r.fixed<=b)));
  const so=$('#so2').value,pi=r=>{const i=PR.indexOf(r.pri);return i<0?9:i};
  const idc=(x,y)=>String(x.id).localeCompare(String(y.id),undefined,{numeric:true});
  L.sort(so==='idd'?(x,y)=>idc(y,x):so==='pri'?(x,y)=>pi(x)-pi(y)||idc(x,y):so==='fix'?(x,y)=>String(y.fixed).localeCompare(x.fixed):so==='title'?(x,y)=>String(x.title).localeCompare(String(y.title)):idc);return L}
 function table(){const L=filt(),tot=L.length,pages=Math.max(1,Math.ceil(tot/S.ps));S.pg=Math.min(Math.max(1,S.pg),pages);const a=(S.pg-1)*S.ps,P=L.slice(a,a+S.ps),cq=can('qa'),cf=can('status');
  $('#tb').innerHTML=P.length?P.map(r=>{const f=isFixed(r),c=/complet/i.test(r.qa);
- return `<tr><td class="mu">${esc(r.id)}</td><td title="${esc(r.title)}"><div class="ti">${esc(r.title)}</div><div class="mu cl">${esc([r.desc,...(r.ext||[])].filter(Boolean).join(' · '))}</div></td><td class="mu" title="${esc(r.cat)}"><div class="ct">${esc(r.cat)}</div></td><td><span class="tag ${esc(r.pri)}">${esc(r.pri||'-')}</span></td><td><span class="st ${f?'fx':'op'}">${f?'Fixed':'Open'}</span></td><td class="mu">${esc(r.fixed)}</td>
+ return `<tr><td class="mu">${esc(r.id)}</td><td title="${esc(r.title)}"><div class="ti">${esc(r.title)}</div><div class="mu cl">${esc([r.desc,...(r.ext||[])].filter(Boolean).join(' · '))}</div></td><td class="nt">${esc(r.notes||'')}</td><td class="mu" title="${esc(r.cat)}"><div class="ct">${esc(r.cat)}</div></td><td><span class="tag ${esc(r.pri)}">${esc(r.pri||'-')}</span></td><td><span class="st ${f?'fx':'op'}">${f?'Fixed':'Open'}</span></td><td class="mu">${esc(r.fixed)}</td>
  <td><select data-qa="${r.row}"${cq?'':' disabled'}><option${c?'':' selected'}>Pending</option><option${c?' selected':''}>Completed</option></select></td>
- <td><div class="acts"><button data-fx="${r.row}" class="ib${f?'':' ok'}" aria-label="${f?'Reopen':'Mark fixed'}"${cf?` data-tip="${f?'Reopen':'Mark fixed'}"`:' disabled title="Your role cannot change status"'}>${ic(f?'rotate-ccw':'check')}</button>${can('add')?`<button data-ed="${r.row}" class="ib" data-tip="Edit issue" aria-label="Edit issue">${ic('pencil')}</button>`:'<span></span>'}${r.imgs?`<button data-iv="${r.row}" class="ib" data-tip="View images" aria-label="View ${r.imgs} images">${ic('image')}<span class="n">${r.imgs}</span></button>`:'<span></span>'}${can('add')&&(r.imgs||0)<MAXI?`<button data-ia="${r.row}" class="ib" data-tip="Attach image" aria-label="Attach image">${ic('paperclip')}</button>`:'<span></span>'}${can('delete')?`<button data-del="${r.row}" class="ib" data-tip="Delete issue" aria-label="Delete issue">${ic('trash-2')}</button>`:'<span></span>'}</div></td></tr>`}).join(''):`<tr><td colspan="8" class="mu">${S.loading?'Loading issues…':'No issues match the filters.'}</td></tr>`;
+ <td><div class="acts"><button data-fx="${r.row}" class="ib${f?'':' ok'}" aria-label="${f?'Reopen':'Mark fixed'}"${cf?` data-tip="${f?'Reopen':'Mark fixed'}"`:' disabled title="Your role cannot change status"'}>${ic(f?'rotate-ccw':'check')}</button>${can('add')?`<button data-ed="${r.row}" class="ib" data-tip="Edit issue" aria-label="Edit issue">${ic('pencil')}</button>`:'<span></span>'}${r.imgs?`<button data-iv="${r.row}" class="ib" data-tip="View images" aria-label="View ${r.imgs} images">${ic('image')}<span class="n">${r.imgs}</span></button>`:'<span></span>'}${can('add')&&(r.imgs||0)<MAXI?`<button data-ia="${r.row}" class="ib" data-tip="Attach image" aria-label="Attach image">${ic('paperclip')}</button>`:'<span></span>'}${can('delete')?`<button data-del="${r.row}" class="ib" data-tip="Delete issue" aria-label="Delete issue">${ic('trash-2')}</button>`:'<span></span>'}</div></td></tr>`}).join(''):`<tr><td colspan="9" class="mu">${S.loading?'Loading issues…':'No issues match the filters.'}</td></tr>`;
  const pb=(p,n,l,off)=>`<button class="ib" data-p="${p}" aria-label="${l}"${off?' disabled':` data-tip="${l}"`}>${ic(n)}</button>`;
  $('#pgb').innerHTML=`<span>${tot?a+1:0}-${a+P.length} of ${tot}</span><label class="pp">Rows <select id="ps">${[10,25,50,100].map(n=>`<option${n==S.ps?' selected':''}>${n}</option>`).join('')}</select></label><span class="pgn">${pb(1,'chevrons-left','First page',S.pg<=1)}${pb(S.pg-1,'chevron-left','Previous page',S.pg<=1)}<span>Page ${S.pg} of ${pages}</span>${pb(S.pg+1,'chevron-right','Next page',S.pg>=pages)}${pb(pages,'chevrons-right','Last page',S.pg>=pages)}</span>`}
 
@@ -239,7 +242,8 @@ function viewImgs(r){$('#vt').textContent='Issue #'+r.id+' images';const b=$('#v
 function rmBtn(r,fid,id,sheet){const b=document.createElement('button');b.textContent='Remove';b.onclick=async()=>{if(!b.dataset.sure){b.dataset.sure='1';b.textContent='Click again to remove';return}
  b.disabled=true;const k=ck(id,sheet),rows=S.rows;S.ver++;S.busy++;try{await api('detach',{id,sheet,row:r.row,iid:r.id,fid});r.imgs=Math.max(0,r.imgs-1);put(k,rows);table();if(r.imgs)viewImgs(r);else $('#dv').close()}catch(e){b.disabled=false;delete b.dataset.sure;b.textContent='Failed. Try again';toast(String(e))}finally{S.busy--}};return b}
 $('#tb').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;const r=S.rows.find(x=>x.row==b.dataset.del),id=cs().id,sheet=S.cur,k=ck();
- askRemove('Delete issue #'+r.id+', "'+r.title+'"? This removes it from the Google Sheet for everyone. Only the sheet\'s Version history can bring it back.',async()=>{if(!S.demo){S.busy++;try{await api('delissue',{id,sheet,row:r.row,iid:r.id})}finally{S.busy--}}S.ver++;const rows=S.rows;rows.splice(rows.indexOf(r),1);if(!S.demo)put(k,rows);cats();render();if(!S.demo)load()},'Delete issue','Issue deleted')});
+ askRemove('Are you sure you want to delete issue #'+r.id+', "'+r.title+'"? This removes it from the Google Sheet for everyone. Only the sheet\'s Version history can bring it back.',async()=>{const rows=S.rows,at=rows.indexOf(r);S.ver++;rows.splice(at,1);$('#dr').close();cats();render();if(S.demo)return;
+ S.busy++;try{await api('delissue',{id,sheet,row:r.row,iid:r.id});put(k,rows)}catch(e){if(S.rows===rows){rows.splice(at,0,r);cats();render()}throw e}finally{S.busy--}load()},'Delete this issue?','Issue deleted','Delete')});
 $('#cxv').onclick=()=>$('#dv').close();
 $('#tb').addEventListener('click',e=>{const v=e.target.closest('[data-iv]'),a=e.target.closest('[data-ia]');if(v)viewImgs(S.rows.find(x=>x.row==v.dataset.iv));if(a){S.att=S.rows.find(x=>x.row==a.dataset.ia);$('#fi').click()}});
 $('#fi').addEventListener('change',async e=>{const r=S.att,left=MAXI-(r.imgs||0),all=[...e.target.files],fl=all.slice(0,left);e.target.value='';if(!fl.length)return;
@@ -254,9 +258,9 @@ $('#pgb').addEventListener('change',e=>{if(e.target.id==='ps'){S.ps=+e.target.va
 
 function tabs(){$('#tabs').innerHTML=cs().tabs.map(s=>`<button class="${s===S.cur?'on':''}" data-t="${esc(s)}">${esc(s)}</button>`).join('')+(can('sheets')&&!S.demo?`<button id="nb" class="ib" data-tip="New tab" aria-label="New tab">${ic('plus')}</button>${S.cur?`<button id="rt" class="ib" data-tip="Remove this tab from the dashboard" aria-label="Remove this tab from the dashboard">${ic('x')}</button>`:''}`:'')}
 async function reSrc(cur){S.srcs=(await api('sources')).sources;SS('bt_src',JSON.stringify(S.srcs));if(S.si>=S.srcs.length)S.si=0;S.cur=cur&&cs().tabs.includes(cur)?cur:cs().tabs[0]||null;srcUI();tabs();S.pg=1;load()}
-function askRemove(text,fn,title='Remove from dashboard',done='Removed from the dashboard'){$('#drh').textContent=title;$('#drt').textContent=text;$('#drm').textContent='';S.rm=fn;S.rmDone=done;$('#dr').showModal()}
+function askRemove(text,fn,title='Remove from dashboard',done='Removed from the dashboard',btn='Remove'){$('#svr').textContent=btn;$('#svr').classList.toggle('dg',btn!=='Remove');$('#drh').textContent=title;$('#drt').textContent=text;$('#drm').textContent='';S.rm=fn;S.rmDone=done;$('#dr').showModal()}
 $('#cxr').onclick=()=>$('#dr').close();
-$('#svr').onclick=async()=>{const b=$('#svr');b.disabled=true;try{await S.rm();$('#dr').close();toast(S.rmDone)}catch(e){$('#drm').textContent=String(e)}finally{b.disabled=false}};
+$('#svr').onclick=async()=>{const b=$('#svr');b.disabled=true;try{await S.rm();$('#dr').close();toast(S.rmDone)}catch(e){if($('#dr').open)$('#drm').textContent=String(e);else toast('Failed: '+e)}finally{b.disabled=false}};
 $('#rsrc').onclick=()=>{const s=cs();askRemove('Remove the linked spreadsheet "'+s.name+'" from the dashboard? Nothing is deleted in Google Sheets.',async()=>{await api('removesource',{sid:s.id});S.si=0;await reSrc()})};
 function restore(){const v=GJ('bt_cur');if(v){const i=S.srcs.findIndex(x=>x.id===v.id);if(i>=0&&S.srcs[i].tabs.includes(v.t)){S.si=i;S.cur=v.t;srcUI();tabs();S.pg=1;return load()}}S.si=0;pick()}
 function setupUI(){const h=S.demo||!S.cur?null:getH(ck()),e=!!(h&&h.empty),n=!!(h&&h.nohead);$('#setup').hidden=!e&&!n;$('#sb').hidden=!e||!can('sheets');$('#setupt').textContent=n?'No heading row found on this tab. It needs an ID column (#, ID, Bug ID or S.No) and a Title column within the first 20 rows.':can('sheets')?'This tab is empty. Set up its columns before adding issues.':'This tab is empty. Ask an admin to set up its columns.'}
@@ -276,8 +280,11 @@ $('#src').onchange=e=>{S.si=+e.target.value;pick()};$('#rf').onclick=()=>{load()
 function enter(){$('#login').hidden=true;$('#who').textContent=S.user.name+' · '+S.user.role;
  $('#ai').hidden=!can('add');$('#ad').hidden=!can('sheets')||S.demo;$('#us').hidden=!can('users')||S.demo;
  if(S.demo){S.srcs=[];pick()}else boot()}
-async function boot(){const c=GJ('bt_src');if(c){S.srcs=c;S.si=0;restore()}
- try{const s=(await api('sources')).sources;SS('bt_src',JSON.stringify(s));if(JSON.stringify(s)!==JSON.stringify(c)){S.srcs=s;restore()}}catch(e){if(!c){const m=$('#err');m.hidden=false;m.textContent='Could not load sheets: '+e}}}
+async function boot(){const c=GJ('bt_src'),cur=GJ('bt_cur');if(c){S.srcs=c;S.si=0;S.skip=true;restore()}
+ try{const v=S.ver,b=await api('bundle',{id:cur?cur.id:''});if(!S.tok)return;const s=b.sources;SS('bt_src',JSON.stringify(s));
+ Object.entries(b.data).forEach(([t,res])=>{const k=ck(b.id,t);setH(k,meta(res));if(v===S.ver&&!S.busy)put(k,norm(res))});
+ if(JSON.stringify(s)!==JSON.stringify(c)){S.srcs=s;S.skip=true;restore()}else if(v===S.ver&&!S.busy&&S.cur){S.skip=true;load()}}
+ catch(e){if(/latest script/.test(e)){try{const s=(await api('sources')).sources;SS('bt_src',JSON.stringify(s));S.srcs=s;restore();return}catch(x){e=x}}if(c&&S.tok)load();if(!c){const m=$('#err');m.hidden=false;m.textContent='Could not load sheets: '+e}}}
 function logout(exp){S.tok='';S.user=null;S.demo=false;S.rows=[];S.loading=false;clearCache();SS('bt_tok');SS('bt_user');$('#login').hidden=false;$('#lm').textContent=exp?'Session expired, please sign in again.':'';$('#lp').value=''}
 $('#so').onclick=()=>{if(!S.demo&&S.tok&&S.url)fetch(S.url,{method:'POST',body:JSON.stringify({action:'logout',token:S.tok})}).catch(()=>{});logout(false)};
 $('#go').onclick=async()=>{const m=$('#lm');m.textContent='';S.url=$('#lgu').value.trim();S.demo=false;
@@ -293,17 +300,17 @@ $('#ai').onclick=()=>{const h=fillX();if(h&&h.empty)return toast("Set up this ta
 function openEdit(r){S.edit=r;fillX();$('#at').value=r.title;$('#ac').value=r.cat==='Uncategorised'?'':r.cat;$('#ad2').value=r.desc;const known=PR.includes(r.pri);$('#apn').hidden=known;$('#ap').value=known?r.pri:'';const x=r.xv||{};document.querySelectorAll('[data-x]').forEach(i=>i.value=x[i.dataset.x]??'');daMode(true);$('#da').showModal()}
 $('#tb').addEventListener('click',e=>{const b=e.target.closest('[data-ed]');if(b)openEdit(S.rows.find(x=>x.row==b.dataset.ed))});
 async function saveEdit(is){const r=S.edit,k=ck(),rows=S.rows,sb=$('#sv4'),id=cs().id,sheet=S.cur;
- const done=()=>{r.title=is.title;r.cat=is.cat||'Uncategorised';r.desc=is.desc;if(is.pri)r.pri=is.pri;r.xv={...r.xv,...is.extra};r.ext=Object.entries(r.xv).filter(e=>e[1]!=='').map(e=>e[0]+': '+e[1]);S.edit=null;clearDa();$('#da').close();cats();render()};
- if(S.demo)return done();sb.disabled=true;S.ver++;S.busy++;let ok=false;
- try{await api('edit',{id,sheet,row:r.row,iid:r.id,issue:is});done();put(k,rows);ok=true;toast('Issue updated')}catch(e){toast('Failed: '+e)}finally{sb.disabled=false;S.busy--}
- if(ok)load()}$('#cx4').onclick=()=>$('#da').close();
+ const old={title:r.title,cat:r.cat,desc:r.desc,pri:r.pri,xv:r.xv,ext:r.ext,notes:r.notes};
+ r.title=is.title;r.cat=is.cat||'Uncategorised';r.desc=is.desc;if(is.pri)r.pri=is.pri;r.xv={...r.xv,...is.extra};r.ext=extLine(r.xv);r.notes=noteOf(r.xv);S.edit=null;clearDa();$('#da').close();cats();render();
+ if(S.demo)return;S.ver++;S.busy++;
+ try{await api('edit',{id,sheet,row:r.row,iid:r.id,issue:is});put(k,rows);toast('Issue updated')}catch(e){Object.assign(r,old);cats();render();toast('Failed: '+e)}finally{S.busy--}}$('#cx4').onclick=()=>$('#da').close();
 $('#sv4').onclick=async()=>{const t=$('#at').value.trim();if(!t)return toast('Title is required');const is={title:t,cat:$('#ac').value.trim(),desc:$('#ad2').value.trim(),pri:$('#ap').value,extra:Object.fromEntries([...document.querySelectorAll('[data-x]')].map(i=>[i.dataset.x,i.value]))};
  if(S.edit)return saveEdit(is);
  if(S.demo){S.rows.push({row:S.rows.length+5,id:Math.max(0,...S.rows.map(r=>+r.id))+1,title:t,cat:is.cat||'Uncategorised',desc:is.desc,pri:is.pri,st:'Open',qa:'Pending',fixed:'',rep:iso(new Date())});$('#da').close();cats();return render()}
- const sb=$('#sv4');sb.disabled=true;
+ const sb=$('#sv4');sb.disabled=true;sb.textContent='Adding…';
  try{const j=await api('add',{id:cs().id,sheet:S.cur,issue:is}),fl=[...$('#af').files].slice(0,MAXI);let msg='Issue added';
  if(fl.length)try{await upl({row:j.row,id:j.id,imgs:0},fl)}catch(e){msg='Issue added, but image upload failed: '+e}
- toast(msg);$('#da').close();['at','ac','ad2','af'].forEach(i=>$('#'+i).value='');await load()}catch(e){toast('Failed: '+e)}finally{sb.disabled=false}};
+ toast(msg);$('#da').close();['at','ac','ad2','af'].forEach(i=>$('#'+i).value='');await load()}catch(e){toast('Failed: '+e)}finally{sb.disabled=false;sb.textContent='Add issue'}};
 $('#ad').onclick=()=>$('#dl2').showModal();$('#cx2').onclick=()=>$('#dl2').close();
 $('#sv2').onclick=async()=>{const id=sid($('#lu').value.trim());if(!id)return toast('Paste a Google Sheets link');
  try{await api('addsource',{sid:id,name:$('#ln').value.trim()});$('#dl2').close();$('#lu').value=$('#ln').value='';S.srcs=(await api('sources')).sources;SS('bt_src',JSON.stringify(S.srcs));S.si=Math.max(0,S.srcs.findIndex(x=>x.id===id));pick()}catch(e){toast('Could not add: '+e)}};
