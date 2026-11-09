@@ -35,7 +35,6 @@ main{padding:20px 24px 48px;display:grid;grid-template-columns:minmax(0,1fr);gap
 .c{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:16px}
 .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}.grid>.c{grid-column:span 2;min-width:0}.grid>.c.w{grid-column:span 3}.grid svg{max-height:230px}
 @media(max-width:1000px){.grid{grid-template-columns:minmax(0,1fr)}.grid>.c,.grid>.c.w{grid-column:auto}}
-.f #fc{max-width:150px}.f #rs{margin-left:auto}
 .donut{width:112px;height:112px;border-radius:50%;display:grid;place-items:center;flex:none}
 .donut i{width:80px;height:80px;border-radius:50%;background:var(--card);display:grid;place-items:center;font:normal 650 20px system-ui}
 .row{display:flex;gap:20px;align-items:center}.lg{font-size:12px;color:var(--mu);display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
@@ -52,7 +51,11 @@ th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--bd);vertical
 .ti{font-weight:500}.cl{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
 .tag{padding:2px 8px;border-radius:4px;font-size:12px;white-space:nowrap}.Critical{background:#d6403f22;color:var(--wr)}.High{background:#c98a0022;color:var(--am)}.Medium,.Low{background:var(--hv);color:var(--mu)}
 .st{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:13px}.st::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}.fx{color:var(--ok)}.op{color:var(--wr)}
-.f{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.f{display:grid;gap:8px;margin-bottom:16px}.f1{display:flex;gap:8px;align-items:center}.f1 .sr{flex:1;max-width:none}.f1 select{width:190px}
+.f2{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:8px;align-items:center}.f2 select{width:100%}
+.dr{display:flex;align-items:center;gap:6px;height:32px;padding:0 4px 0 10px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--mu);font-size:12px;white-space:nowrap}.dr input{width:122px;height:28px;padding:0 4px;border:0;background:transparent}
+@media(max-width:900px){.f2{grid-template-columns:repeat(2,minmax(0,1fr))}.dr{grid-column:1/-1}.dr input{flex:1;min-width:0;width:auto}}
+@media(max-width:480px){.f1{flex-wrap:wrap}.f1 .sr{flex:1 1 100%}.f1 select{flex:1;width:auto}}
 .sr{position:relative;flex:1 1 240px;max-width:360px;color:var(--mu)}.sr .i{position:absolute;left:9px;top:8px}.sr input{width:100%;padding-left:32px}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:70;max-width:92%;background:var(--tx);color:var(--bg);padding:8px 14px;border-radius:6px;display:none}
 #tip{position:fixed;z-index:60;background:var(--tx);color:var(--bg);font-size:12px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none}
@@ -99,14 +102,14 @@ dialog h2{font-size:16px}dialog label{display:block;margin:12px 0 4px;color:var(
 <div class="c w"><h2>Monthly: fixed vs new (last 6 months)</h2><div id="mo"></div></div>
 </div>
 <div class="c"><h2>Issues</h2>
-<div class="f"><div class="sr"><svg class="i"><use href="#i-search"/></svg><input id="q" placeholder="Search id, title, category, description" aria-label="Search issues"></div>
-<select id="fs"><option value="">All status</option><option value="o">Open</option><option value="r">Fixed</option></select>
-<select id="fp"><option value="">All priority</option><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select>
-<select id="fc"><option value="">All categories</option></select>
-<select id="fq"><option value="">All QA</option><option value="p">QA pending</option><option value="c">QA completed</option></select>
-<label class="dt">Fixed from <input id="fa" type="date"></label><label class="dt">to <input id="fb" type="date"></label>
-<select id="so2"><option value="id">Sort: # low to high</option><option value="idd">Sort: # high to low</option><option value="pri">Sort: priority</option><option value="fix">Sort: recently fixed</option><option value="title">Sort: title A-Z</option></select>
+<div class="f"><div class="f1"><div class="sr"><svg class="i"><use href="#i-search"/></svg><input id="q" placeholder="Search id, title, category, description" aria-label="Search issues"></div>
+<select id="so2" aria-label="Sort issues"><option value="id">Sort: # low to high</option><option value="idd">Sort: # high to low</option><option value="pri">Sort: priority</option><option value="fix">Sort: recently fixed</option><option value="title">Sort: title A-Z</option></select>
 <button id="rs" class="ib" data-tip="Reset filters" aria-label="Reset filters"><svg class="i"><use href="#i-filter-x"/></svg></button></div>
+<div class="f2"><select id="fs" aria-label="Filter by status"><option value="">All status</option><option value="o">Open</option><option value="r">Fixed</option></select>
+<select id="fp" aria-label="Filter by priority"><option value="">All priority</option><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select>
+<select id="fc" aria-label="Filter by category"><option value="">All categories</option></select>
+<select id="fq" aria-label="Filter by QA"><option value="">All QA</option><option value="p">QA pending</option><option value="c">QA completed</option></select>
+<div class="dr" role="group" aria-label="Fixed date range"><span>Fixed</span><input id="fa" type="date" aria-label="Fixed from"><span>to</span><input id="fb" type="date" aria-label="Fixed to"></div></div></div>
 <div class="tw"><table id="it"><colgroup><col style="width:60px"><col><col style="width:180px"><col style="width:96px"><col style="width:92px"><col style="width:108px"><col style="width:132px"><col style="width:128px"></colgroup><thead><tr><th>#</th><th>Issue</th><th>Category</th><th>Priority</th><th>Status</th><th>Fixed on</th><th>QA</th><th>Actions</th></tr></thead><tbody id="tb"></tbody></table></div>
 <div class="pgr" id="pgb"></div></div>
 </main>
