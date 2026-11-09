@@ -75,7 +75,7 @@ dialog h2{font-size:16px}dialog label{display:block;margin:12px 0 4px;color:var(
 <p id="lm" class="er"></p>
 <p style="display:flex;gap:8px;margin:14px 0 0"><button id="go" class="p">Sign in</button><button id="dm2">Preview with demo data</button><button class="ib tt" style="margin-left:auto"></button></p></div></div>
 <header><div class="brand"><h1>Bug Fix Tracker</h1><span id="who" class="mu"></span></div><span id="sync" class="mu"></span>
-<select id="src" hidden aria-label="Spreadsheet"></select>
+<select id="src" hidden aria-label="Spreadsheet"></select><button id="rsrc" class="ib" hidden data-tip="Remove this linked spreadsheet" aria-label="Remove this linked spreadsheet"><svg class="i"><use href="#i-x"/></svg></button>
 <nav class="tb" aria-label="Actions">
 <button id="ai" class="ib p" hidden data-tip="Add issue" aria-label="Add issue"><svg class="i"><use href="#i-plus"/></svg></button><span class="sep"></span>
 <button id="rf" class="ib" data-tip="Refresh" aria-label="Refresh"><svg class="i"><use href="#i-refresh-cw"/></svg></button>
@@ -131,8 +131,9 @@ dialog h2{font-size:16px}dialog label{display:block;margin:12px 0 4px;color:var(
 <dialog id="dv" style="max-width:900px"><h2 id="vt"></h2><div id="vb"></div><p style="display:flex;justify-content:flex-end"><button id="cxv">Close</button></p></dialog>
 <dialog id="dn"><h2 id="nh">New tab</h2><label>Tab name</label><input id="nn" maxlength="80">
 <p class="mu">Every tab gets the standard columns: #, Issue Title, Category, Description, Priority, Developer Status, Notes, QA Status. Add any others you need below; they appear as fields in Add issue.</p>
-<label>Extra columns (up to 12)</label><div id="nx"></div><p style="margin:8px 0 0"><button id="nxa">Add column</button></p><p id="nm" class="er"></p>
+<div id="nhid"></div><label>Extra columns (up to 12)</label><div id="nx"></div><p style="margin:8px 0 0"><button id="nxa">Add column</button></p><p id="nm" class="er"></p>
 <p style="display:flex;gap:8px;justify-content:flex-end"><button id="cxn">Cancel</button><button id="svn" class="p">Create</button></p></dialog>
+<dialog id="dr"><h2>Remove from dashboard</h2><p id="drt"></p><p id="drm" class="er"></p><p style="display:flex;gap:8px;justify-content:flex-end"><button id="cxr">Cancel</button><button id="svr" class="p">Remove</button></p></dialog>
 <input id="fi" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
 <script>
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -143,10 +144,10 @@ const S={url:LS('bt_url')||'',tok:GS('bt_tok')||'',user:JSON.parse(GS('bt_user')
 const ck=(id=cs().id,t=S.cur)=>'bt_d:'+id+'|'+t,GJ=k=>{try{return JSON.parse(GS(k)||'null')}catch(e){return null}};
 const put=(k,rows)=>{S.c[k]=rows;SS(k,JSON.stringify(rows))},got=k=>S.c[k]||GJ(k);
 const hk=k=>k.replace('bt_d:','bt_h:'),setH=(k,v)=>{S.hd[k]=v;SS(hk(k),JSON.stringify(v))},getH=k=>S.hd[k]||(S.hd[k]=GJ(hk(k)));
-function clearCache(){S.c={};S.hd={};S.ls++;try{Object.keys(sessionStorage).filter(k=>k.startsWith('bt_d:')||k.startsWith('bt_h:')||k==='bt_src').forEach(k=>sessionStorage.removeItem(k))}catch(e){}}
+function clearCache(){S.c={};S.hd={};S.ls++;try{Object.keys(sessionStorage).filter(k=>k.startsWith('bt_d:')||k.startsWith('bt_h:')||k==='bt_src'||k==='bt_cur').forEach(k=>sessionStorage.removeItem(k))}catch(e){}}
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const monday=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return iso(x)};
-const isFixed=r=>/resolved|fixed|done|closed/i.test(r.st),toast=t=>{const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',3200)};
+const isFixed=r=>/resolved|fixed|done|closed/i.test(r.st)&&!/not|unresolved|unfixed/i.test(r.st),toast=t=>{const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',3200)};
 const PR=['Critical','High','Medium','Low'],cs=()=>S.srcs[S.si]||{id:'',name:'Sheet',tabs:[]};
 const can=p=>S.demo||!!(S.user&&S.user.perms.split(',').includes(p));
 const D=v=>{if(!v)return'';const m=String(v).match(/^\d{4}-\d{2}-\d{2}/);if(m)return m[0];const x=new Date(v);return isNaN(x)?'':iso(x)};
@@ -158,10 +159,11 @@ async function api(action,p={}){if(S.demo)throw 'Not available in demo mode';
  if(j.error){if(/session expired/i.test(j.error))logout(true);throw j.error}return j}
 
 const SYSC=/^(fixed date|fixed by|qa by|reported date|reported by|screenshot)$/i;
-function cols(h){const f=re=>h.find(x=>re.test(x));return{title:f(/title|issue/i),cat:f(/categor/i),desc:f(/descri/i),pri:f(/priorit/i),st:f(/developer/i)||f(/^status/i),qa:f(/qa status|^qa$/i)||f(/qa/i),fix:f(/fixed date/i),rep:f(/reported date/i),img:f(/^screenshot$/i)}}
+const tc=s=>{s=String(s||'').trim();return s?s[0].toUpperCase()+s.slice(1).toLowerCase():''},meta=res=>({cols:extras(res.head),empty:!!res.empty,nohead:!!res.nohead});
+function cols(h){const f=re=>h.find(x=>re.test(x));return{title:f(/title|issue/i),cat:f(/categor/i)||f(/module/i),desc:f(/descri/i),pri:f(/priorit/i),st:f(/developer|dev\s*status/i)||f(/^status/i),qa:f(/qa status|^qa$/i)||f(/qa/i),fix:f(/fixed date/i),rep:f(/reported date/i),img:f(/^screenshot$/i)}}
 function extras(h){const c=Object.values(cols(h));return h.filter(x=>x&&x!=='#'&&!c.includes(x)&&!SYSC.test(x))}
 function norm(res){const c=cols(res.head),E=extras(res.head);
- return res.rows.map(x=>({ext:E.filter(k=>x[k]!==''&&x[k]!=null).map(k=>k+': '+x[k]),row:x.row,id:x['#'],title:x[c.title],cat:String(x[c.cat]||'').trim()||'Uncategorised',desc:x[c.desc]||'',pri:x[c.pri]||'',st:String(x[c.st]||''),qa:String(x[c.qa]||''),fixed:D(x[c.fix]),rep:D(x[c.rep]),imgs:(String(x[c.img]||'').match(/\/d\/[\w-]{20,}/g)||[]).length}))}
+ return res.rows.map(x=>({ext:E.filter(k=>x[k]!==''&&x[k]!=null).map(k=>k+': '+x[k]),row:x.row,id:x['#'],title:x[c.title],cat:String(x[c.cat]||'').trim()||'Uncategorised',desc:x[c.desc]||'',pri:tc(x[c.pri]),st:String(x[c.st]||''),qa:String(x[c.qa]||''),fixed:D(x[c.fix]),rep:D(x[c.rep]),imgs:(String(x[c.img]||'').match(/\/d\/[\w-]{20,}/g)||[]).length}))}
 function demo(){const cats=['Signing up as a user','Login as a user','Applying as a district manager','Add property','Inspection'],t=new Date();
  return Array.from({length:60},(_,i)=>{const fx=i<34,d=new Date(t);d.setDate(d.getDate()-Math.floor((60-i)*1.7));const r=new Date(d);r.setDate(r.getDate()-5);
  return{row:i+5,id:i+1,title:'Demo issue '+(i+1),cat:cats[i%5],desc:'Sample description for issue '+(i+1),pri:PR[(i*7)%4],st:fx?'Resolved':'Open',qa:fx&&i%3?'Completed':'Pending',fixed:fx?iso(d):'',rep:iso(r)}})}
@@ -171,15 +173,16 @@ async function load(){$('#err').hidden=true;
  if(S.demo){if(!S.rows.length)S.rows=demo();cats();return render()}
  const fail=e=>{const m=$('#err');m.hidden=false;m.textContent='Could not load "'+S.cur+'": '+e;$('#sync').textContent='Load failed'};
  if(!S.cur){S.rows=[];S.loading=false;fail('no sheet tab available');cats();return render()}
+ SS('bt_cur',JSON.stringify({id:cs().id,t:S.cur}));
  const k=ck(),id=cs().id,sheet=S.cur,hit=got(k),t=++S.ls,v=S.ver;
  S.rows=hit||[];S.loading=!hit;if(hit)S.c[k]=hit;$('#sync').textContent=hit?'Updating…':'Loading…';cats();render();
- try{const res=await api('data',{id,sheet}),rows=norm(res);setH(k,{cols:extras(res.head),empty:!!res.empty});
+ try{const res=await api('data',{id,sheet}),rows=norm(res);setH(k,meta(res));
  if(t!==S.ls){if(v===S.ver&&!S.busy)put(k,rows);return}
  S.loading=false;$('#sync').textContent='Synced '+new Date().toLocaleTimeString();setupUI();
  if(v===S.ver&&!S.busy&&JSON.stringify(rows)!==JSON.stringify(hit)){put(k,rows);S.rows=rows;cats();render()}else if(v===S.ver&&!S.busy)put(k,S.rows);else if(!hit)render();
  prefetch()}
  catch(e){if(t!==S.ls)return;S.loading=false;if(hit){fail(e+' (showing the last saved copy)')}else{S.rows=[];fail(e)}cats();render()}}
-async function prefetch(){if(S.pf||S.demo)return;S.pf=1;const s=cs();try{for(const t of s.tabs){const k=ck(s.id,t);if(got(k))continue;const v=S.ver;try{const res=await api('data',{id:s.id,sheet:t}),rows=norm(res);if(!S.tok)return;setH(k,{cols:extras(res.head),empty:!!res.empty});if(!S.c[k]&&v===S.ver)put(k,rows)}catch(e){if(!S.tok)return}}}finally{S.pf=0}}
+async function prefetch(){if(S.pf||S.demo)return;S.pf=1;const s=cs();try{for(const t of s.tabs){const k=ck(s.id,t);if(got(k))continue;const v=S.ver;try{const res=await api('data',{id:s.id,sheet:t}),rows=norm(res);if(!S.tok)return;setH(k,meta(res));if(!S.c[k]&&v===S.ver)put(k,rows)}catch(e){if(!S.tok)return}}}finally{S.pf=0}}
 
 function bars(el,L,Ss){const W=520,H=170,p=10,m=Math.max(1,...Ss.flatMap(s=>s.v)),gw=(W-p)/L.length,bw=Math.min(24,gw/(Ss.length+.5));let o=`<svg viewBox="0 0 ${W} ${H+24}" width="100%">`;
  Ss.forEach((s,k)=>s.v.forEach((v,i)=>{const h=v/m*(H-18),x=p+i*gw+(gw-bw*Ss.length)/2+k*bw;o+=`<rect x="${x}" y="${H-h}" width="${bw-2}" height="${h}" rx="3" fill="${s.c}"/><text x="${x+bw/2-1}" y="${H-h-4}" text-anchor="middle" font-size="10" fill="var(--mu)">${v||''}</text>`}));
@@ -210,7 +213,8 @@ function render(){
 function filt(){const q=$('#q').value.toLowerCase(),fs=$('#fs').value,fp=$('#fp').value,fc=$('#fc').value,fq=$('#fq').value,a=$('#fa').value,b=$('#fb').value;
  const L=S.rows.filter(r=>(!q||(r.id+' '+r.title+' '+r.cat+' '+r.desc+' '+(r.ext||[]).join(' ')).toLowerCase().includes(q))&&(!fs||(fs==='r')===isFixed(r))&&(!fp||r.pri===fp)&&(!fc||r.cat===fc)&&(!fq||(fq==='c')===/complet/i.test(r.qa))&&(!a||(r.fixed&&r.fixed>=a))&&(!b||(r.fixed&&r.fixed<=b)));
  const so=$('#so2').value,pi=r=>{const i=PR.indexOf(r.pri);return i<0?9:i};
- L.sort(so==='idd'?(x,y)=>y.id-x.id:so==='pri'?(x,y)=>pi(x)-pi(y)||x.id-y.id:so==='fix'?(x,y)=>String(y.fixed).localeCompare(x.fixed):so==='title'?(x,y)=>String(x.title).localeCompare(String(y.title)):(x,y)=>x.id-y.id);return L}
+ const idc=(x,y)=>String(x.id).localeCompare(String(y.id),undefined,{numeric:true});
+ L.sort(so==='idd'?(x,y)=>idc(y,x):so==='pri'?(x,y)=>pi(x)-pi(y)||idc(x,y):so==='fix'?(x,y)=>String(y.fixed).localeCompare(x.fixed):so==='title'?(x,y)=>String(x.title).localeCompare(String(y.title)):idc);return L}
 function table(){const L=filt(),tot=L.length,pages=Math.max(1,Math.ceil(tot/S.ps));S.pg=Math.min(Math.max(1,S.pg),pages);const a=(S.pg-1)*S.ps,P=L.slice(a,a+S.ps),cq=can('qa'),cf=can('status');
  $('#tb').innerHTML=P.length?P.map(r=>{const f=isFixed(r),c=/complet/i.test(r.qa);
  return `<tr><td class="mu">${esc(r.id)}</td><td title="${esc(r.title)}"><div class="ti">${esc(r.title)}</div><div class="mu cl">${esc([r.desc,...(r.ext||[])].filter(Boolean).join(' · ').slice(0,240))}</div></td><td class="mu" title="${esc(r.cat)}"><div class="ct">${esc(r.cat)}</div></td><td><span class="tag ${esc(r.pri)}">${esc(r.pri||'-')}</span></td><td><span class="st ${f?'fx':'op'}">${f?'Fixed':'Open'}</span></td><td class="mu">${esc(r.fixed)}</td>
@@ -227,7 +231,7 @@ async function jpeg(file){if(!/^image\/(png|jpeg|webp)$/.test(file.type))throw f
 async function upl(r,files){let n=0;const id=cs().id,sheet=S.cur,k=ck(),rows=S.rows;S.ver++;S.busy++;try{for(const f of files){toast('Uploading image '+(++n)+' of '+files.length+'…');await api('attach',{id,sheet,row:r.row,iid:r.id,b64:await jpeg(f)});r.imgs=(r.imgs||0)+1}}finally{S.busy--;put(k,rows)}}
 function viewImgs(r){$('#vt').textContent='Issue #'+r.id+' images';const b=$('#vb');b.innerHTML='';$('#dv').showModal();
  for(let n=0;n<r.imgs;n++){const d=document.createElement('div');d.className='mu';d.textContent='Loading image…';b.append(d);
- api('image',{id:cs().id,sheet:S.cur,row:r.row,iid:r.id,n}).then(j=>{const i=new Image();i.src='data:image/jpeg;base64,'+j.b64;i.alt='Issue '+r.id+' image '+(n+1);i.style.cssText='max-width:100%;margin:6px 0;border-radius:6px';d.replaceChildren(i)}).catch(e=>d.textContent='Could not load image: '+e)}}
+ api('image',{id:cs().id,sheet:S.cur,row:r.row,iid:r.id,n}).then(j=>{if(j.url){const a=document.createElement('a');a.href=j.url;a.target='_blank';a.rel='noopener';a.textContent='Open image '+(n+1)+' in Google Drive';return d.replaceChildren(a)}const i=new Image();i.src='data:image/jpeg;base64,'+j.b64;i.alt='Issue '+r.id+' image '+(n+1);i.style.cssText='max-width:100%;margin:6px 0;border-radius:6px';d.replaceChildren(i)}).catch(e=>d.textContent='Could not load image: '+e)}}
 $('#cxv').onclick=()=>$('#dv').close();
 $('#tb').addEventListener('click',e=>{const v=e.target.closest('[data-iv]'),a=e.target.closest('[data-ia]');if(v)viewImgs(S.rows.find(x=>x.row==v.dataset.iv));if(a){S.att=S.rows.find(x=>x.row==a.dataset.ia);$('#fi').click()}});
 $('#fi').addEventListener('change',async e=>{const r=S.att,left=MAXI-(r.imgs||0),all=[...e.target.files],fl=all.slice(0,left);e.target.value='';if(!fl.length)return;
@@ -240,25 +244,32 @@ $('#rs').onclick=()=>{['q','fs','fp','fc','fq','fa','fb'].forEach(i=>$('#'+i).va
 $('#pgb').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(b){S.pg=+b.dataset.p;table()}});
 $('#pgb').addEventListener('change',e=>{if(e.target.id==='ps'){S.ps=+e.target.value;S.pg=1;table()}});
 
-function tabs(){$('#tabs').innerHTML=cs().tabs.map(s=>`<button class="${s===S.cur?'on':''}" data-t="${esc(s)}">${esc(s)}</button>`).join('')+(can('sheets')&&!S.demo?`<button id="nb" class="ib" data-tip="New tab" aria-label="New tab">${ic('plus')}</button>`:'')}
-function setupUI(){const h=S.demo||!S.cur?null:getH(ck()),e=!!(h&&h.empty);$('#setup').hidden=!e;$('#sb').hidden=!can('sheets');$('#setupt').textContent=can('sheets')?'This tab is empty. Set up its columns before adding issues.':'This tab is empty. Ask an admin to set up its columns.'}
+function tabs(){$('#tabs').innerHTML=cs().tabs.map(s=>`<button class="${s===S.cur?'on':''}" data-t="${esc(s)}">${esc(s)}</button>`).join('')+(can('sheets')&&!S.demo?`<button id="nb" class="ib" data-tip="New tab" aria-label="New tab">${ic('plus')}</button>${S.cur?`<button id="rt" class="ib" data-tip="Remove this tab from the dashboard" aria-label="Remove this tab from the dashboard">${ic('x')}</button>`:''}`:'')}
+async function reSrc(cur){S.srcs=(await api('sources')).sources;SS('bt_src',JSON.stringify(S.srcs));if(S.si>=S.srcs.length)S.si=0;S.cur=cur&&cs().tabs.includes(cur)?cur:cs().tabs[0]||null;srcUI();tabs();S.pg=1;load()}
+function askRemove(text,fn){$('#drt').textContent=text;$('#drm').textContent='';S.rm=fn;$('#dr').showModal()}
+$('#cxr').onclick=()=>$('#dr').close();
+$('#svr').onclick=async()=>{const b=$('#svr');b.disabled=true;try{await S.rm();$('#dr').close();toast('Removed from the dashboard')}catch(e){$('#drm').textContent=String(e)}finally{b.disabled=false}};
+$('#rsrc').onclick=()=>{const s=cs();askRemove('Remove the linked spreadsheet "'+s.name+'" from the dashboard? Nothing is deleted in Google Sheets.',async()=>{await api('removesource',{sid:s.id});S.si=0;await reSrc()})};
+function restore(){const v=GJ('bt_cur');if(v){const i=S.srcs.findIndex(x=>x.id===v.id);if(i>=0&&S.srcs[i].tabs.includes(v.t)){S.si=i;S.cur=v.t;srcUI();tabs();S.pg=1;return load()}}S.si=0;pick()}
+function setupUI(){const h=S.demo||!S.cur?null:getH(ck()),e=!!(h&&h.empty),n=!!(h&&h.nohead);$('#setup').hidden=!e&&!n;$('#sb').hidden=!e||!can('sheets');$('#setupt').textContent=n?'No heading row found on this tab. It needs an ID column (#, ID, Bug ID or S.No) and a Title column within the first 20 rows.':can('sheets')?'This tab is empty. Set up its columns before adding issues.':'This tab is empty. Ask an admin to set up its columns.'}
 async function refreshTabs(){if(S.demo||!S.tok)return;try{const s=(await api('sources')).sources;if(JSON.stringify(s)===JSON.stringify(S.srcs))return;const cur=cs().id;SS('bt_src',JSON.stringify(s));S.srcs=s;S.si=Math.max(0,s.findIndex(x=>x.id===cur));srcUI();if(!cs().tabs.includes(S.cur)){S.cur=cs().tabs[0]||null;S.pg=1;load()}tabs()}catch(e){}}
-let lastTabs=0;addEventListener('focus',()=>{if(Date.now()-lastTabs<15000)return;lastTabs=Date.now();refreshTabs()});
+let lastTabs=0;addEventListener('focus',()=>{if(Date.now()-lastTabs<15000)return;lastTabs=Date.now();if(S.tok&&!S.demo&&S.cur&&!S.busy)load();refreshTabs()});
 function nxRow(){const d=document.createElement('div');d.className='nr';d.innerHTML=`<input maxlength="60" placeholder="Column name" aria-label="Column name"><button class="ib" aria-label="Remove column">${ic('x')}</button>`;d.lastChild.onclick=()=>d.remove();$('#nx').append(d);return d}
-function openNew(name){$('#nh').textContent=name?'Set up columns':'New tab';$('#nn').value=name||'';$('#nn').disabled=!!name;$('#nx').innerHTML='';$('#nm').textContent='';$('#dn').showModal()}
+function openNew(name){$('#nh').textContent=name?'Set up columns':'New tab';$('#nn').value=name||'';$('#nn').disabled=!!name;$('#nx').innerHTML='';$('#nm').textContent='';const hid=name?[]:cs().hidden||[];$('#nhid').innerHTML=hid.length?'<label>Removed tabs</label>'+hid.map(t=>`<div class="nr" style="align-items:center;justify-content:space-between"><span>${esc(t)}</span><button data-r="${esc(t)}">Restore</button></div>`).join(''):'';$('#dn').showModal()}
+$('#nhid').addEventListener('click',async e=>{const b=e.target.closest('[data-r]');if(!b)return;b.disabled=true;try{const t=b.dataset.r;await api('showtab',{id:cs().id,name:t});$('#dn').close();await reSrc(t);toast('Tab restored')}catch(er){$('#nm').textContent=String(er);b.disabled=false}});
 $('#sb').onclick=()=>openNew(S.cur);$('#nxa').onclick=()=>nxRow().firstChild.focus();$('#cxn').onclick=()=>$('#dn').close();
 $('#svn').onclick=async()=>{const name=$('#nn').value.trim(),b=$('#svn');if(!name)return $('#nm').textContent='Tab name is required';b.disabled=true;$('#nm').textContent='';
  try{const r=await api('addtab',{id:cs().id,name,cols:[...$('#nx').querySelectorAll('input')].map(i=>i.value)});S.srcs=(await api('sources')).sources;SS('bt_src',JSON.stringify(S.srcs));$('#dn').close();S.cur=r.name;srcUI();tabs();S.pg=1;toast('Tab ready');load()}catch(e){$('#nm').textContent=String(e)}finally{b.disabled=false}};
-function srcUI(){$('#src').innerHTML=S.srcs.map((x,i)=>`<option value="${i}"${i==S.si?' selected':''}>${esc(x.name)}</option>`).join('');$('#src').hidden=!S.srcs.length}
+function srcUI(){$('#src').innerHTML=S.srcs.map((x,i)=>`<option value="${i}"${i==S.si?' selected':''}>${esc(x.name)}</option>`).join('');$('#src').hidden=!S.srcs.length;$('#rsrc').hidden=!cs().id||!can('sheets')||S.demo}
 function pick(){S.cur=cs().tabs[0]||null;srcUI();tabs();S.pg=1;load()}
-$('#tabs').addEventListener('click',e=>{if(e.target.closest('#nb'))return openNew();const b=e.target.closest('[data-t]');if(b){S.cur=b.dataset.t;tabs();S.pg=1;load()}});
+$('#tabs').addEventListener('click',e=>{if(e.target.closest('#nb'))return openNew();if(e.target.closest('#rt')){const t=S.cur;return askRemove('Remove "'+t+'" from the dashboard? The tab and its data stay in Google Sheets, and you can bring it back from the + button.',async()=>{await api('hidetab',{id:cs().id,name:t});await reSrc()})}const b=e.target.closest('[data-t]');if(b){S.cur=b.dataset.t;tabs();S.pg=1;load()}});
 $('#src').onchange=e=>{S.si=+e.target.value;pick()};$('#rf').onclick=()=>{load();refreshTabs()};
 
 function enter(){$('#login').hidden=true;$('#who').textContent=S.user.name+' · '+S.user.role;
  $('#ai').hidden=!can('add');$('#ad').hidden=!can('sheets')||S.demo;$('#us').hidden=!can('users')||S.demo;
  if(S.demo){S.srcs=[];pick()}else boot()}
-async function boot(){const c=GJ('bt_src');if(c){S.srcs=c;S.si=0;pick()}
- try{const s=(await api('sources')).sources;SS('bt_src',JSON.stringify(s));if(JSON.stringify(s)!==JSON.stringify(c)){const cur=cs().id;S.srcs=s;S.si=Math.max(0,s.findIndex(x=>x.id===cur));pick()}}catch(e){if(!c){const m=$('#err');m.hidden=false;m.textContent='Could not load sheets: '+e}}}
+async function boot(){const c=GJ('bt_src');if(c){S.srcs=c;S.si=0;restore()}
+ try{const s=(await api('sources')).sources;SS('bt_src',JSON.stringify(s));if(JSON.stringify(s)!==JSON.stringify(c)){S.srcs=s;restore()}}catch(e){if(!c){const m=$('#err');m.hidden=false;m.textContent='Could not load sheets: '+e}}}
 function logout(exp){S.tok='';S.user=null;S.demo=false;S.rows=[];S.loading=false;clearCache();SS('bt_tok');SS('bt_user');$('#login').hidden=false;$('#lm').textContent=exp?'Session expired, please sign in again.':'';$('#lp').value=''}
 $('#so').onclick=()=>{if(!S.demo&&S.tok&&S.url)fetch(S.url,{method:'POST',body:JSON.stringify({action:'logout',token:S.tok})}).catch(()=>{});logout(false)};
 $('#go').onclick=async()=>{const m=$('#lm');m.textContent='';S.url=$('#lgu').value.trim();S.demo=false;
