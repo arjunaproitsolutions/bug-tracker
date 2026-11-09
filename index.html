@@ -45,7 +45,7 @@ main{padding:20px 24px 48px;display:grid;grid-template-columns:minmax(0,1fr);gap
 .tw{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:760px}
 #it{table-layout:fixed;min-width:980px}#it th{background:var(--hv);height:36px;padding-top:0;padding-bottom:0;white-space:nowrap}#it td{height:56px;padding-top:6px;padding-bottom:6px}
 #it th:first-child,#it td:first-child{text-align:right;padding-right:16px}#it th:last-child{text-align:center}#it select{width:100%}
-#it .ti,#it .cl,#it .ct{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#it .cl{display:block}
+#it .ct{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#it .ti,#it .cl{overflow-wrap:anywhere}#it .cl{display:block;overflow:visible;white-space:pre-line;margin-top:2px}
 .acts{display:grid!important;grid-template-columns:repeat(3,32px);gap:2px;justify-content:center}
 th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--bd);vertical-align:middle}th{color:var(--mu);font-weight:500;font-size:12px}
 #tb tr:hover{background:var(--hv)}#tb tr:last-child td{border-bottom:0}
@@ -217,7 +217,7 @@ function filt(){const q=$('#q').value.toLowerCase(),fs=$('#fs').value,fp=$('#fp'
  L.sort(so==='idd'?(x,y)=>idc(y,x):so==='pri'?(x,y)=>pi(x)-pi(y)||idc(x,y):so==='fix'?(x,y)=>String(y.fixed).localeCompare(x.fixed):so==='title'?(x,y)=>String(x.title).localeCompare(String(y.title)):idc);return L}
 function table(){const L=filt(),tot=L.length,pages=Math.max(1,Math.ceil(tot/S.ps));S.pg=Math.min(Math.max(1,S.pg),pages);const a=(S.pg-1)*S.ps,P=L.slice(a,a+S.ps),cq=can('qa'),cf=can('status');
  $('#tb').innerHTML=P.length?P.map(r=>{const f=isFixed(r),c=/complet/i.test(r.qa);
- return `<tr><td class="mu">${esc(r.id)}</td><td title="${esc(r.title)}"><div class="ti">${esc(r.title)}</div><div class="mu cl">${esc([r.desc,...(r.ext||[])].filter(Boolean).join(' · ').slice(0,240))}</div></td><td class="mu" title="${esc(r.cat)}"><div class="ct">${esc(r.cat)}</div></td><td><span class="tag ${esc(r.pri)}">${esc(r.pri||'-')}</span></td><td><span class="st ${f?'fx':'op'}">${f?'Fixed':'Open'}</span></td><td class="mu">${esc(r.fixed)}</td>
+ return `<tr><td class="mu">${esc(r.id)}</td><td title="${esc(r.title)}"><div class="ti">${esc(r.title)}</div><div class="mu cl">${esc([r.desc,...(r.ext||[])].filter(Boolean).join(' · '))}</div></td><td class="mu" title="${esc(r.cat)}"><div class="ct">${esc(r.cat)}</div></td><td><span class="tag ${esc(r.pri)}">${esc(r.pri||'-')}</span></td><td><span class="st ${f?'fx':'op'}">${f?'Fixed':'Open'}</span></td><td class="mu">${esc(r.fixed)}</td>
  <td><select data-qa="${r.row}"${cq?'':' disabled'}><option${c?'':' selected'}>Pending</option><option${c?' selected':''}>Completed</option></select></td>
  <td><div class="acts"><button data-fx="${r.row}" class="ib${f?'':' ok'}" aria-label="${f?'Reopen':'Mark fixed'}"${cf?` data-tip="${f?'Reopen':'Mark fixed'}"`:' disabled title="Your role cannot change status"'}>${ic(f?'rotate-ccw':'check')}</button>${r.imgs?`<button data-iv="${r.row}" class="ib" data-tip="View images" aria-label="View ${r.imgs} images">${ic('image')}<span class="n">${r.imgs}</span></button>`:'<span></span>'}${can('add')&&(r.imgs||0)<MAXI?`<button data-ia="${r.row}" class="ib" data-tip="Attach image" aria-label="Attach image">${ic('paperclip')}</button>`:'<span></span>'}</div></td></tr>`}).join(''):`<tr><td colspan="8" class="mu">${S.loading?'Loading issues…':'No issues match the filters.'}</td></tr>`;
  const pb=(p,n,l,off)=>`<button class="ib" data-p="${p}" aria-label="${l}"${off?' disabled':` data-tip="${l}"`}>${ic(n)}</button>`;
@@ -308,7 +308,7 @@ $('#rp').onclick=()=>{const R=S.rows,now=new Date(),src=S.demo?'Demo data':cs().
  const mo=[];for(let i=5;i>=0;i--)mo.push(iso(new Date(now.getFullYear(),now.getMonth()-i,1)).slice(0,7));
  const n=(f,key)=>R.filter(r=>r[key]&&f(r[key])).length,onW=w=>d=>monday(d+'T00:00')===w,onM=m=>d=>d.slice(0,7)===m,hasDates=R.some(r=>r.fixed||r.rep);
  const tbl=(cls,head,body)=>`<table class="${cls}"><thead><tr>${head.map(h=>`<th${/^(Total|Open|Fixed|New)$/.test(h)?' class="n"':''}>${h}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
- const iss=(r,tail)=>`<tr><td class="id">${esc(r.id)}</td><td><strong>${esc(r.title)}</strong>${r.desc?`<small>${esc(String(r.desc).slice(0,220))}</small>`:''}</td><td>${esc(r.cat)}</td><td>${tag(r.pri)}</td>${tail}</tr>`;
+ const iss=(r,tail)=>`<tr><td class="id">${esc(r.id)}</td><td><strong>${esc(r.title)}</strong>${r.desc?`<small>${esc(r.desc)}</small>`:''}</td><td>${esc(r.cat)}</td><td>${tag(r.pri)}</td>${tail}</tr>`;
  const opS=[...op].sort((a,b)=>pv(a)-pv(b)||idc(a,b)),fxS=[...fx].sort((a,b)=>String(b.fixed).localeCompare(String(a.fixed))||idc(a,b));
  const sum=!R.length?'This tab has no issues yet.':`${fx.length} of ${R.length} issues are fixed (${pct}%). ${op.length} remain open${op.length?`, including ${crit} critical and ${high} high priority`:''}.${fx.length?` ${qaWait} fixed ${qaWait===1?'issue is':'issues are'} still awaiting QA.`:''}`;
  const html=`<!doctype html><html lang="en"><meta charset="utf-8"><title>Bug fix report - ${esc(src)} - ${esc(tab)}</title><style>
@@ -325,7 +325,7 @@ dl{display:grid;grid-template-columns:auto auto;gap:1px 12px;margin:0;font-size:
 h2{font-size:15px;color:#17324d;margin:28px 0 8px;break-after:avoid}h2 em{font-style:normal;font-weight:400;color:#5b6673}
 table{width:100%;border-collapse:collapse}thead{display:table-header-group}th{text-align:left;font-size:11px;font-weight:600;color:#5b6673;border-bottom:1.5px solid #17324d;padding:6px 8px}td{padding:7px 8px;border-bottom:1px solid #e6e9ed;vertical-align:top}tr{break-inside:avoid}
 .n{text-align:right}.id{white-space:nowrap;color:#5b6673}th:first-child,td:first-child{padding-left:0}th:last-child,td:last-child{padding-right:0}
-small{display:block;font-size:11.5px;line-height:1.4;color:#5b6673;margin-top:2px}strong{font-weight:600}
+small{display:block;white-space:pre-line;overflow-wrap:anywhere;font-size:11.5px;line-height:1.4;color:#5b6673;margin-top:2px}strong{font-weight:600}
 .p{white-space:nowrap;font-weight:600}.Critical{color:#b42323}.High{color:#a35f00}.Medium{color:#1f5fd6}.Low,.mu{color:#5b6673}.ok{color:#13744f;font-weight:600}
 .m{width:190px;white-space:nowrap}.tr{display:inline-block;width:130px;height:6px;background:#e6e9ed;border-radius:3px;overflow:hidden;vertical-align:middle;margin-right:10px}.tr i{display:block;height:100%;background:#13744f}.m b{font-weight:600}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:32px}.note{font-size:12px;color:#5b6673;margin:8px 0 0}.none{color:#5b6673;margin:4px 0}
