@@ -63,7 +63,7 @@ dialog h2{font-size:16px}dialog label{display:block;margin:12px 0 4px;color:var(
 .lc{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:24px;width:min(420px,92%)}.lc label{display:block;margin:12px 0 4px;color:var(--mu);font-size:12px}.lc input{width:100%}.er{color:var(--wr);margin:8px 0 0;font-size:13px}
 .mu{color:var(--mu);font-size:12px}.dt{display:flex;gap:6px;align-items:center;color:var(--mu);font-size:12px}
 .pgr{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:12px;color:var(--mu);font-size:12px}.pp{display:flex;gap:6px;align-items:center}.pgn{display:flex;gap:2px;align-items:center;margin-left:auto}.pgn>span{padding:0 8px}
-.acts{display:flex;gap:2px}
+.acts{display:flex;gap:2px}.imr{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:14px}
 .tabs .ib{padding:0;height:32px;align-self:center;border:0}.nr{display:flex;gap:4px;margin-top:6px}#setup{display:flex;align-items:center;justify-content:space-between;gap:12px}
 </style></head><body>
 <!-- Icons: Lucide v0.460.0, ISC license, lucide.dev -->
@@ -229,9 +229,12 @@ async function jpeg(file){if(!/^image\/(png|jpeg|webp)$/.test(file.type))throw f
  const im=await createImageBitmap(file),k=Math.min(1,1600/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
  const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.85).split(',')[1]}
 async function upl(r,files){let n=0;const id=cs().id,sheet=S.cur,k=ck(),rows=S.rows;S.ver++;S.busy++;try{for(const f of files){toast('Uploading image '+(++n)+' of '+files.length+'…');await api('attach',{id,sheet,row:r.row,iid:r.id,b64:await jpeg(f)});r.imgs=(r.imgs||0)+1}}finally{S.busy--;put(k,rows)}}
-function viewImgs(r){$('#vt').textContent='Issue #'+r.id+' images';const b=$('#vb');b.innerHTML='';$('#dv').showModal();
- for(let n=0;n<r.imgs;n++){const d=document.createElement('div');d.className='mu';d.textContent='Loading image…';b.append(d);
- api('image',{id:cs().id,sheet:S.cur,row:r.row,iid:r.id,n}).then(j=>{if(j.url){const a=document.createElement('a');a.href=j.url;a.target='_blank';a.rel='noopener';a.textContent='Open image '+(n+1)+' in Google Drive';return d.replaceChildren(a)}const i=new Image();i.src='data:image/jpeg;base64,'+j.b64;i.alt='Issue '+r.id+' image '+(n+1);i.style.cssText='max-width:100%;margin:6px 0;border-radius:6px';d.replaceChildren(i)}).catch(e=>d.textContent='Could not load image: '+e)}}
+function viewImgs(r){$('#vt').textContent='Issue #'+r.id+' images';const b=$('#vb');b.innerHTML='';if(!$('#dv').open)$('#dv').showModal();const id=cs().id,sheet=S.cur;
+ for(let n=0;n<r.imgs;n++){const d=document.createElement('div');d.className='mu imr';d.textContent='Loading image…';b.append(d);
+ api('image',{id,sheet,row:r.row,iid:r.id,n}).then(j=>{const kids=[];if(j.url){const a=document.createElement('a');a.href=j.url;a.target='_blank';a.rel='noopener';a.textContent='Open image '+(n+1)+' in Google Drive';kids.push(a)}else{const i=new Image();i.src='data:image/jpeg;base64,'+j.b64;i.alt='Issue '+r.id+' image '+(n+1);i.style.cssText='max-width:100%;border-radius:6px';kids.push(i)}
+ if(can('add')&&j.fid)kids.push(rmBtn(r,j.fid,id,sheet));d.replaceChildren(...kids)}).catch(e=>d.textContent='Could not load image: '+e)}}
+function rmBtn(r,fid,id,sheet){const b=document.createElement('button');b.textContent='Remove';b.onclick=async()=>{if(!b.dataset.sure){b.dataset.sure='1';b.textContent='Click again to remove';return}
+ b.disabled=true;const k=ck(id,sheet),rows=S.rows;S.ver++;S.busy++;try{await api('detach',{id,sheet,row:r.row,iid:r.id,fid});r.imgs=Math.max(0,r.imgs-1);put(k,rows);table();if(r.imgs)viewImgs(r);else $('#dv').close()}catch(e){b.disabled=false;delete b.dataset.sure;b.textContent='Failed. Try again';toast(String(e))}finally{S.busy--}};return b}
 $('#cxv').onclick=()=>$('#dv').close();
 $('#tb').addEventListener('click',e=>{const v=e.target.closest('[data-iv]'),a=e.target.closest('[data-ia]');if(v)viewImgs(S.rows.find(x=>x.row==v.dataset.iv));if(a){S.att=S.rows.find(x=>x.row==a.dataset.ia);$('#fi').click()}});
 $('#fi').addEventListener('change',async e=>{const r=S.att,left=MAXI-(r.imgs||0),all=[...e.target.files],fl=all.slice(0,left);e.target.value='';if(!fl.length)return;
@@ -292,19 +295,53 @@ async function usrs(){try{$('#ut').innerHTML=(await api('users')).users.map(u=>`
 $('#us').onclick=()=>{$('#du').showModal();usrs()};$('#cx3').onclick=()=>$('#du').close();
 $('#ut').onclick=e=>{const t=e.target.closest('tr');if(!t)return;$('#ue').value=t.dataset.e;$('#un').value=t.dataset.n;$('#ur').value=t.dataset.r;$('#ua').checked=t.dataset.a==='true';$('#up').value=''};
 $('#sv3').onclick=async()=>{try{await api('saveuser',{email:$('#ue').value,name:$('#un').value,role:$('#ur').value,password:$('#up').value,active:$('#ua').checked});toast('User saved');$('#up').value='';usrs()}catch(e){toast(String(e))}};
-$('#rp').onclick=()=>{const R=S.rows,op=R.filter(r=>!isFixed(r)),fx=R.filter(isFixed),now=new Date(),nm=S.demo?'Demo':cs().name+' / '+S.cur;
+$('#rp').onclick=()=>{const R=S.rows,now=new Date(),src=S.demo?'Demo data':cs().name,tab=S.demo?'Sample issues':S.cur,by=S.user?S.user.name:'';
+ const op=R.filter(r=>!isFixed(r)),fx=R.filter(isFixed),pct=R.length?Math.round(fx.length/R.length*100):0,qaDone=r=>/complet|pass|done/i.test(r.qa),qaWait=fx.filter(r=>!qaDone(r)).length;
+ const pv=r=>{const i=PR.indexOf(r.pri);return i<0?9:i},idc=(a,b)=>String(a.id).localeCompare(String(b.id),undefined,{numeric:true}),cnt=(L,p)=>L.filter(r=>r.pri===p).length;
+ const crit=cnt(op,'Critical'),high=cnt(op,'High'),dm=d=>new Date(d+'T00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+ const num=x=>`<td class="n">${x}</td>`,tag=p=>p?`<span class="p ${esc(p)}">${esc(p)}</span>`:'<span class="mu">Not set</span>',qa=r=>`<span class="${qaDone(r)?'ok':'mu'}">${qaDone(r)?'Completed':'Pending'}</span>`;
+ const meter=p=>`<td class="m"><span class="tr"><i style="width:${p}%"></i></span><b>${p}%</b></td>`;
+ const pris=[...PR,''].filter(p=>p||R.some(r=>!PR.includes(r.pri))).map(p=>{const inP=r=>p?r.pri===p:!PR.includes(r.pri),t=R.filter(inP).length,f=fx.filter(inP).length;return{p,t,f}}).filter(x=>x.t);
+ const cm={};R.forEach(r=>{const c=cm[r.cat]=cm[r.cat]||{t:0,f:0};c.t++;if(isFixed(r))c.f++});
+ const cats=Object.entries(cm).sort((a,b)=>(b[1].t-b[1].f)-(a[1].t-a[1].f)||b[1].t-a[1].t);
  const wk=[],ws=new Date(monday(now)+'T00:00');for(let i=7;i>=0;i--){const d=new Date(ws);d.setDate(d.getDate()-7*i);wk.push(iso(d))}
  const mo=[];for(let i=5;i>=0;i--)mo.push(iso(new Date(now.getFullYear(),now.getMonth()-i,1)).slice(0,7));
- const n=(f,key)=>R.filter(r=>r[key]&&f(r[key])).length,tr=a=>'<tr>'+a.map(x=>`<td>${x}</td>`).join('')+'</tr>',tb=(h,b)=>`<table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${b}</table>`;
- const pct=R.length?Math.round(fx.length/R.length*100):0,sorted=[...op].sort((a,b)=>PR.indexOf(a.pri)-PR.indexOf(b.pri));
- const html=`<!doctype html><meta charset="utf-8"><title>Bug report - ${esc(nm)}</title><style>body{font:14px/1.5 system-ui,sans-serif;max-width:900px;margin:30px auto;padding:0 20px;color:#17202a}h1{font-size:22px;margin:0}h2{font-size:16px;margin:26px 0 8px;border-bottom:1px solid #ddd;padding-bottom:4px}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #e5e5e5;font-size:13px}th{background:#f3f5f7}.k{display:flex;gap:10px;flex-wrap:wrap}.k div{border:1px solid #ddd;border-radius:8px;padding:8px 14px}.k b{display:block;font-size:22px}button{padding:6px 12px;float:right}@media print{button{display:none}}</style>
-<button onclick="print()">Print / Save as PDF</button><h1>Bug fix report</h1><p>${esc(nm)}<br>Generated ${now.toLocaleString()}</p>
-<h2>Summary</h2><div class="k"><div><b>${R.length}</b>Total</div><div><b>${fx.length}</b>Fixed</div><div><b>${op.length}</b>Open</div><div><b>${pct}%</b>Fix rate</div><div><b>${op.filter(r=>r.pri==='Critical').length}</b>Open critical</div></div>
-<h2>Weekly</h2>${tb(['Week starting','Fixed','New'],wk.map(w=>tr([w,n(d=>monday(d+'T00:00')===w,'fixed'),n(d=>monday(d+'T00:00')===w,'rep')])).join(''))}
-<h2>Monthly</h2>${tb(['Month','Fixed','New'],mo.map(m=>tr([m,n(d=>d.slice(0,7)===m,'fixed'),n(d=>d.slice(0,7)===m,'rep')])).join(''))}
-<h2>Open issues by priority</h2>${tb(['Priority','Open'],PR.map(p=>tr([p,op.filter(r=>r.pri===p).length])).join(''))}
-<h2>Open issues (${op.length})</h2>${tb(['#','Issue','Category','Priority'],sorted.map(r=>tr([esc(r.id),esc(r.title),esc(r.cat),esc(r.pri)])).join(''))}
-<h2>Fixed issues (${fx.length})</h2>${tb(['#','Issue','Fixed on','QA'],[...fx].sort((a,b)=>b.fixed.localeCompare(a.fixed)).map(r=>tr([esc(r.id),esc(r.title),esc(r.fixed||'-'),esc(r.qa)])).join('')) }`;
+ const n=(f,key)=>R.filter(r=>r[key]&&f(r[key])).length,onW=w=>d=>monday(d+'T00:00')===w,onM=m=>d=>d.slice(0,7)===m,hasDates=R.some(r=>r.fixed||r.rep);
+ const tbl=(cls,head,body)=>`<table class="${cls}"><thead><tr>${head.map(h=>`<th${/^(Total|Open|Fixed|New)$/.test(h)?' class="n"':''}>${h}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
+ const iss=(r,tail)=>`<tr><td class="id">${esc(r.id)}</td><td><strong>${esc(r.title)}</strong>${r.desc?`<small>${esc(String(r.desc).slice(0,220))}</small>`:''}</td><td>${esc(r.cat)}</td><td>${tag(r.pri)}</td>${tail}</tr>`;
+ const opS=[...op].sort((a,b)=>pv(a)-pv(b)||idc(a,b)),fxS=[...fx].sort((a,b)=>String(b.fixed).localeCompare(String(a.fixed))||idc(a,b));
+ const sum=!R.length?'This tab has no issues yet.':`${fx.length} of ${R.length} issues are fixed (${pct}%). ${op.length} remain open${op.length?`, including ${crit} critical and ${high} high priority`:''}.${fx.length?` ${qaWait} fixed ${qaWait===1?'issue is':'issues are'} still awaiting QA.`:''}`;
+ const html=`<!doctype html><html lang="en"><meta charset="utf-8"><title>Bug fix report - ${esc(src)} - ${esc(tab)}</title><style>
+@page{size:A4;margin:16mm 14mm 16mm;@bottom-right{content:"Page " counter(page) " of " counter(pages);font:9px "Segoe UI",system-ui,sans-serif;color:#5b6673}}
+*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{margin:0;background:#eef1f4;color:#1c2530;font:13px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif;font-variant-numeric:tabular-nums}
+.page{max-width:880px;margin:24px auto;padding:44px 48px;background:#fff;box-shadow:0 1px 4px #1c253026}
+.act{display:flex;justify-content:flex-end;max-width:880px;margin:24px auto -8px}button{font:600 13px "Segoe UI",system-ui,sans-serif;color:#fff;background:#17324d;border:0;border-radius:6px;padding:9px 16px;cursor:pointer}
+header{display:flex;justify-content:space-between;gap:32px;align-items:flex-end;padding-bottom:16px;border-bottom:3px solid #17324d}
+h1{font-size:28px;line-height:1.15;letter-spacing:-.02em;margin:0;color:#17324d}.sub{margin:4px 0 0;font-size:14px;color:#5b6673}
+dl{display:grid;grid-template-columns:auto auto;gap:1px 12px;margin:0;font-size:12px}dt{color:#5b6673}dd{margin:0;font-weight:600;text-align:right}
+.sum{font-size:15px;line-height:1.55;margin:20px 0}
+.kp{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid #d9dee4;border-bottom:1px solid #d9dee4;margin-bottom:8px}.kp div{padding:12px 14px;border-left:1px solid #d9dee4}.kp div:first-child{border-left:0;padding-left:0}.kp b{display:block;font-size:26px;line-height:1.15;letter-spacing:-.02em}.kp span{font-size:12px;color:#5b6673}.kp .cr b{color:#b42323}
+h2{font-size:15px;color:#17324d;margin:28px 0 8px;break-after:avoid}h2 em{font-style:normal;font-weight:400;color:#5b6673}
+table{width:100%;border-collapse:collapse}thead{display:table-header-group}th{text-align:left;font-size:11px;font-weight:600;color:#5b6673;border-bottom:1.5px solid #17324d;padding:6px 8px}td{padding:7px 8px;border-bottom:1px solid #e6e9ed;vertical-align:top}tr{break-inside:avoid}
+.n{text-align:right}.id{white-space:nowrap;color:#5b6673}th:first-child,td:first-child{padding-left:0}th:last-child,td:last-child{padding-right:0}
+small{display:block;font-size:11.5px;line-height:1.4;color:#5b6673;margin-top:2px}strong{font-weight:600}
+.p{white-space:nowrap;font-weight:600}.Critical{color:#b42323}.High{color:#a35f00}.Medium{color:#1f5fd6}.Low,.mu{color:#5b6673}.ok{color:#13744f;font-weight:600}
+.m{width:190px;white-space:nowrap}.tr{display:inline-block;width:130px;height:6px;background:#e6e9ed;border-radius:3px;overflow:hidden;vertical-align:middle;margin-right:10px}.tr i{display:block;height:100%;background:#13744f}.m b{font-weight:600}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:32px}.note{font-size:12px;color:#5b6673;margin:8px 0 0}.none{color:#5b6673;margin:4px 0}
+@media print{body{background:#fff}.page{max-width:none;margin:0;padding:0;box-shadow:none}.act{display:none}}
+@media(max-width:640px){.page{padding:24px 16px;margin:0}header,.two{display:block}dl{margin-top:12px}dd{text-align:left}.kp{grid-template-columns:repeat(2,1fr)}.two table{margin-bottom:16px}.tr{width:70px}.m{width:auto}.act{margin:12px 16px -4px}table{font-size:12px}}
+</style><div class="act"><button onclick="print()">Print / Save as PDF</button></div><main class="page">
+<header><div><h1>Bug Fix Report</h1><p class="sub">${esc(src)} &middot; ${esc(tab)}</p></div><dl><dt>Date</dt><dd>${now.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</dd><dt>Time</dt><dd>${now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</dd>${by?`<dt>Prepared by</dt><dd>${esc(by)}</dd>`:''}</dl></header>
+<p class="sum">${sum}</p>
+<section class="kp"><div><b>${R.length}</b><span>Total issues</span></div><div><b>${fx.length}</b><span>Fixed</span></div><div><b>${op.length}</b><span>Open</span></div><div><b>${pct}%</b><span>Fix rate</span></div><div class="${crit?'cr':''}"><b>${crit}</b><span>Open critical</span></div></section>
+${pris.length?`<h2>Progress by priority</h2>${tbl('',['Priority','Total','Open','Fixed','Completion'],pris.map(x=>`<tr><td>${tag(x.p)}</td>${num(x.t)}${num(x.t-x.f)}${num(x.f)}${meter(Math.round(x.f/x.t*100))}</tr>`).join(''))}`:''}
+${cats.length?`<h2>Progress by category</h2>${tbl('',['Category','Total','Open','Fixed','Completion'],cats.map(([k,v])=>`<tr><td>${esc(k)}</td>${num(v.t)}${num(v.t-v.f)}${num(v.f)}${meter(Math.round(v.f/v.t*100))}</tr>`).join(''))}`:''}
+<h2>Activity</h2><div class="two"><div>${tbl('',['Week starting','Fixed','New'],wk.map(w=>`<tr><td>${dm(w)}</td>${num(n(onW(w),'fixed'))}${num(n(onW(w),'rep'))}</tr>`).join(''))}</div><div>${tbl('',['Month','Fixed','New'],mo.map(m=>`<tr><td>${new Date(m+'-01T00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</td>${num(n(onM(m),'fixed'))}${num(n(onM(m),'rep'))}</tr>`).join(''))}</div></div>
+<p class="note">${hasDates?'Counts only':'No dated activity yet. These figures include only'} fixes and new issues recorded through the tracker.</p>
+<h2>Open issues <em>(${op.length})</em></h2>${op.length?tbl('',['#','Issue','Category','Priority','QA'],opS.map(r=>iss(r,`<td>${qa(r)}</td>`)).join('')):'<p class="none">No open issues.</p>'}
+<h2>Fixed issues <em>(${fx.length})</em></h2>${fx.length?tbl('',['#','Issue','Category','Priority','Fixed on','QA'],fxS.map(r=>iss(r,`<td class="id">${r.fixed?esc(r.fixed):'-'}</td><td>${qa(r)}</td>`)).join('')):'<p class="none">No fixed issues yet.</p>'}
+</main></html>`;
  const u=URL.createObjectURL(new Blob([html],{type:'text/html'}));if(!window.open(u))toast('Allow pop-ups to see the report')};
 
 const curT=()=>document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
